@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -13,17 +13,43 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { name, url, username, password } = body;
 
-    const link = await db.shkLink.update({
-      where: { id, companyId: session.companyId },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(url !== undefined && { url }),
-        ...(username !== undefined && { username }),
-        ...(password !== undefined && { password }),
-      },
-    });
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
 
-    return NextResponse.json(link);
+    if (name !== undefined) {
+      setClauses.push(`name = $${paramIndex++}`);
+      values.push(name);
+    }
+    if (url !== undefined) {
+      setClauses.push(`url = $${paramIndex++}`);
+      values.push(url);
+    }
+    if (username !== undefined) {
+      setClauses.push(`username = $${paramIndex++}`);
+      values.push(username);
+    }
+    if (password !== undefined) {
+      setClauses.push(`password = $${paramIndex++}`);
+      values.push(password);
+    }
+
+    if (setClauses.length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    setClauses.push(`"updatedAt" = NOW()`);
+    values.push(id);
+    values.push(session.companyId);
+
+    const sql = `UPDATE "ShkLink" SET ${setClauses.join(', ')} WHERE id = $${paramIndex++} AND "companyId" = $${paramIndex} RETURNING *`;
+    const result = await query(sql, values);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0]);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -38,7 +64,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const { id } = await params;
-    await db.shkLink.delete({ where: { id, companyId: session.companyId } });
+    const result = await query(
+      `DELETE FROM "ShkLink" WHERE id = $1 AND "companyId" = $2`,
+      [id, session.companyId]
+    );
+
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

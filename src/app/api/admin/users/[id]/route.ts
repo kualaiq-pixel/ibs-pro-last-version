@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 import { hashPassword } from '@/lib/auth';
 
@@ -17,46 +17,63 @@ export async function PUT(
     const body = await request.json();
     const { username, password, role, companyId } = body;
 
-    const existing = await db.user.findUnique({ where: { id } });
+    const existing = await queryOne<{ id: string; username: string }>(
+      'SELECT id, username FROM "User" WHERE id = $1',
+      [id]
+    );
     if (!existing) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     if (username && username !== existing.username) {
-      const usernameExists = await db.user.findFirst({ where: { username } });
+      const usernameExists = await queryOne<{ id: string }>(
+        'SELECT id FROM "User" WHERE username = $1',
+        [username]
+      );
       if (usernameExists) {
         return NextResponse.json({ error: 'Username already exists' }, { status: 400 });
       }
     }
 
     if (companyId) {
-      const company = await db.company.findUnique({ where: { id: companyId } });
+      const company = await queryOne<{ id: string }>(
+        'SELECT id FROM "Company" WHERE id = $1',
+        [companyId]
+      );
       if (!company) {
         return NextResponse.json({ error: 'Company not found' }, { status: 404 });
       }
     }
 
-    const data: Record<string, unknown> = {};
-    if (username) data.username = username;
-    if (password) data.password = await hashPassword(password);
-    if (role) data.role = role;
-    if (companyId) data.companyId = companyId;
+    const hashedPassword = password ? await hashPassword(password) : null;
 
-    const user = await db.user.update({
-      where: { id },
-      data,
-    });
+    await query(
+      `UPDATE "User"
+       SET username = COALESCE($1, username),
+           password = COALESCE($2, password),
+           role = COALESCE($3, role),
+           "companyId" = COALESCE($4, "companyId"),
+           "updatedAt" = NOW()
+       WHERE id = $5`,
+      [username || null, hashedPassword, role || null, companyId || null, id]
+    );
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Updated user: ${user.username}`,
-        adminId: session.userId || null,
-      },
-    });
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Updated user: ${username || existing.username}`, session.userId || null]
+    );
 
-    const { password: _, ...safeUser } = user;
-    return NextResponse.json(safeUser);
+    const user = await queryOne<Record<string, unknown>>(
+      `SELECT u.id, u.username, u.role, u."companyId", u."createdAt", u."updatedAt",
+              c.name as "companyName", c.code as "companyCode"
+       FROM "User" u
+       JOIN "Company" c ON u."companyId" = c.id
+       WHERE u.id = $1`,
+      [id]
+    );
+
+    return NextResponse.json(user);
   } catch (error) {
     console.error('User PUT error:', error);
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
@@ -74,20 +91,21 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await db.user.findUnique({ where: { id } });
+    const existing = await queryOne<{ id: string; username: string }>(
+      'SELECT id, username FROM "User" WHERE id = $1',
+      [id]
+    );
     if (!existing) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    await db.user.delete({ where: { id } });
+    await query('DELETE FROM "User" WHERE id = $1', [id]);
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Deleted user: ${existing.username}`,
-        adminId: session.userId || null,
-      },
-    });
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Deleted user: ${existing.username}`, session.userId || null]
+    );
 
     return NextResponse.json({ message: 'User deleted' });
   } catch (error) {

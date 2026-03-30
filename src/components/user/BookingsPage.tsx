@@ -132,8 +132,8 @@ export default function BookingsPage() {
         customerName: formCustomerMethod === 'individual' ? formName : undefined,
         customerEmail: formCustomerMethod === 'individual' ? formEmail : undefined,
         customerAddress: formCustomerMethod === 'individual' ? formAddress : undefined,
-        carMake: formCarMake || undefined,
-        carModel: formCarModel || undefined,
+        vehicleMake: formCarMake || undefined,
+        vehicleModel: formCarModel || undefined,
         licensePlate: formLicensePlate || undefined,
         bookingDate: formBookingDate,
         bookingTime: formBookingTime,
@@ -146,7 +146,7 @@ export default function BookingsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify(body),
       });
-      if (res.ok) { setDialogOpen(false); fetchItems(); }
+      if (res.ok) { setDialogOpen(false); loadItems(); }
     } catch { /* ignore */ }
     setSaving(false);
   };
@@ -155,7 +155,7 @@ export default function BookingsPage() {
     if (!deleteId) return;
     try {
       const res = await fetch(`/api/user/bookings/${deleteId}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (res.ok) { setDeleteId(null); fetchItems(); }
+      if (res.ok) { setDeleteId(null); loadItems(); }
     } catch { /* ignore */ }
   };
 
@@ -166,7 +166,7 @@ export default function BookingsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: 'In Progress' }),
       });
-      if (res.ok) fetchItems();
+      if (res.ok) loadItems();
     } catch { /* ignore */ }
   };
 

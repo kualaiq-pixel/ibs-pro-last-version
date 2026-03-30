@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Pencil, Trash2, Settings } from 'lucide-react';
+import { getAdminAuthHeaders } from './shared';
 
 interface ContactInfo {
   id: string;
@@ -35,7 +36,7 @@ export default function AdminSettingsPage() {
 
   const fetchContacts = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/contact-info');
+      const res = await fetch('/api/admin/contact-info', { headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setContacts(data);
@@ -67,7 +68,7 @@ export default function AdminSettingsPage() {
       const method = editingItem ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminAuthHeaders(),
         body: JSON.stringify(form),
       });
       if (!res.ok) {
@@ -87,7 +88,7 @@ export default function AdminSettingsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/admin/contact-info/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/contact-info/${id}`, { method: 'DELETE', headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed');
       toast({ title: 'Success', description: 'Contact info deleted' });
       setContacts((prev) => prev.filter((c) => c.id !== id));

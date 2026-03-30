@@ -29,12 +29,12 @@ interface InvoiceRecord {
   id: string;
   invoiceNumber: string;
   date: string;
-  customer: string;
+ customerName?: string;
   total: number;
   status: 'Pending' | 'Paid';
   type: 'Receipt' | 'Invoice';
   referenceNumber?: string;
-  items?: Array<{ description: string; amount: number }>;
+  items?: Array<{ description: string; quantity: number; unitPrice: number }>;
 }
 
 export default function InvoicesPage() {
@@ -45,10 +45,16 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRecord | null>(null);
 
+  const [summary, setSummary] = useState({ totalPending: 0, totalPaid: 0 });
+
   const loadInvoices = async () => {
     try {
       const res = await fetch('/api/user/invoices', { headers: getAuthHeaders() });
-      if (res.ok) setInvoices(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setInvoices(data.invoices || []);
+        if (data.summary) setSummary(data.summary);
+      }
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -59,17 +65,17 @@ export default function InvoicesPage() {
   const toggleStatus = async (item: InvoiceRecord) => {
     const newStatus = item.status === 'Paid' ? 'Pending' : 'Paid';
     try {
-      const res = await fetch(`/api/user/invoices/${item.id}/status`, {
+      const res = await fetch(`/api/user/invoices/${item.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) fetchInvoices();
+      if (res.ok) loadInvoices();
     } catch { /* ignore */ }
   };
 
-  const totalPending = invoices.filter((i) => i.status === 'Pending').reduce((s, i) => s + i.total, 0);
-  const totalPaid = invoices.filter((i) => i.status === 'Paid').reduce((s, i) => s + i.total, 0);
+  const totalPending = summary.totalPending;
+  const totalPaid = summary.totalPaid;
 
   return (
     <div className="space-y-4">
@@ -124,7 +130,7 @@ export default function InvoicesPage() {
                     <TableRow key={item.id} className="cursor-pointer" onClick={() => setSelectedInvoice(item)}>
                       <TableCell className="font-mono text-xs">{item.invoiceNumber}</TableCell>
                       <TableCell>{item.date}</TableCell>
-                      <TableCell>{item.customer}</TableCell>
+                      <TableCell>{item.customerName || '—'}</TableCell>
                       <TableCell className="font-semibold">{item.total.toFixed(2)}{cur}</TableCell>
                       <TableCell>
                         <Badge variant={item.status === 'Paid' ? 'default' : 'secondary'}>
@@ -168,7 +174,7 @@ export default function InvoicesPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t('income.customer', locale)}</p>
-                  <p className="font-medium">{selectedInvoice.customer}</p>
+                  <p className="font-medium">{selectedInvoice.customerName || '—'}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t('booking.status', locale)}</p>
@@ -189,7 +195,7 @@ export default function InvoicesPage() {
                   {selectedInvoice.items.map((line, i) => (
                     <div key={i} className="flex justify-between text-sm">
                       <span>{line.description}</span>
-                      <span>{line.amount.toFixed(2)}{cur}</span>
+                      <span>{((line.quantity || 1) * (line.unitPrice || 0)).toFixed(2)}{cur}</span>
                     </div>
                   ))}
                 </div>

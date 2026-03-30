@@ -90,7 +90,7 @@ export default function CustomersPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify(body),
       });
-      if (res.ok) { setDialogOpen(false); fetchCustomers(); }
+      if (res.ok) { setDialogOpen(false); loadCustomers(); }
     } catch { /* ignore */ }
     setSaving(false);
   };
@@ -99,7 +99,7 @@ export default function CustomersPage() {
     if (!deleteId) return;
     try {
       const res = await fetch(`/api/user/customers/${deleteId}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (res.ok) { setDeleteId(null); fetchCustomers(); }
+      if (res.ok) { setDeleteId(null); loadCustomers(); }
     } catch { /* ignore */ }
   };
 

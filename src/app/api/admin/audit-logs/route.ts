@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -13,18 +13,17 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const limit = 100;
 
-    const [auditLogs, total] = await Promise.all([
-      db.auditLog.findMany({
-        orderBy: { timestamp: 'desc' },
-        skip: offset,
-        take: limit,
-      }),
-      db.auditLog.count(),
+    const [auditLogsResult, totalResult] = await Promise.all([
+      query<Record<string, unknown>>(
+        'SELECT * FROM "AuditLog" ORDER BY "timestamp" DESC LIMIT $1 OFFSET $2',
+        [limit, offset]
+      ),
+      query<{ count: string }>('SELECT COUNT(*)::text as count FROM "AuditLog"'),
     ]);
 
     return NextResponse.json({
-      auditLogs,
-      total,
+      auditLogs: auditLogsResult.rows,
+      total: parseInt(totalResult.rows[0]?.count || '0', 10),
       offset,
       limit,
     });

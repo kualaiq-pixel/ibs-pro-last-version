@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function PUT(
@@ -16,43 +16,56 @@ export async function PUT(
     const body = await request.json();
     const { name, code, businessId, vatId, iban, phone, email, address, zipCode, city, country, isActive } = body;
 
-    const existing = await db.company.findUnique({ where: { id } });
+    const existing = await queryOne<{ id: string; name: string; code: string }>(
+      'SELECT id, name, code FROM "Company" WHERE id = $1',
+      [id]
+    );
     if (!existing) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
     if (code && code !== existing.code) {
-      const codeExists = await db.company.findFirst({ where: { code } });
+      const codeExists = await queryOne<{ id: string }>(
+        'SELECT id FROM "Company" WHERE code = $1',
+        [code]
+      );
       if (codeExists) {
         return NextResponse.json({ error: 'Company code already exists' }, { status: 400 });
       }
     }
 
-    const company = await db.company.update({
-      where: { id },
-      data: {
-        name: name ?? existing.name,
-        code: code ?? existing.code,
-        businessId: businessId !== undefined ? businessId : existing.businessId,
-        vatId: vatId !== undefined ? vatId : existing.vatId,
-        iban: iban !== undefined ? iban : existing.iban,
-        phone: phone !== undefined ? phone : existing.phone,
-        email: email !== undefined ? email : existing.email,
-        address: address !== undefined ? address : existing.address,
-        zipCode: zipCode !== undefined ? zipCode : existing.zipCode,
-        city: city !== undefined ? city : existing.city,
-        country: country !== undefined ? country : existing.country,
-        isActive: isActive !== undefined ? isActive : existing.isActive,
-      },
-    });
+    await query(
+      `UPDATE "Company"
+       SET name = COALESCE($1, name),
+           code = COALESCE($2, code),
+           "businessId" = CASE WHEN $3 IS NOT NULL THEN $3 ELSE "businessId" END,
+           "vatId" = CASE WHEN $4 IS NOT NULL THEN $4 ELSE "vatId" END,
+           iban = CASE WHEN $5 IS NOT NULL THEN $5 ELSE iban END,
+           phone = CASE WHEN $6 IS NOT NULL THEN $6 ELSE phone END,
+           email = CASE WHEN $7 IS NOT NULL THEN $7 ELSE email END,
+           address = CASE WHEN $8 IS NOT NULL THEN $8 ELSE address END,
+           "zipCode" = CASE WHEN $9 IS NOT NULL THEN $9 ELSE "zipCode" END,
+           city = CASE WHEN $10 IS NOT NULL THEN $10 ELSE city END,
+           country = CASE WHEN $11 IS NOT NULL THEN $11 ELSE country END,
+           "isActive" = CASE WHEN $12 IS NOT NULL THEN $12 ELSE "isActive" END,
+           "updatedAt" = NOW()
+       WHERE id = $13`,
+      [name || null, code || null, businessId !== undefined ? businessId : null, vatId !== undefined ? vatId : null, iban !== undefined ? iban : null, phone !== undefined ? phone : null, email !== undefined ? email : null, address !== undefined ? address : null, zipCode !== undefined ? zipCode : null, city !== undefined ? city : null, country !== undefined ? country : null, isActive !== undefined ? isActive : null, id]
+    );
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Updated company: ${company.name} (${company.code})`,
-        adminId: session.userId || null,
-      },
-    });
+    const finalCode = code || existing.code;
+    const finalName = name || existing.name;
+
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Updated company: ${finalName} (${finalCode})`, session.userId || null]
+    );
+
+    const company = await queryOne<Record<string, unknown>>(
+      'SELECT * FROM "Company" WHERE id = $1',
+      [id]
+    );
 
     return NextResponse.json(company);
   } catch (error) {
@@ -72,20 +85,21 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await db.company.findUnique({ where: { id } });
+    const existing = await queryOne<{ id: string; name: string; code: string }>(
+      'SELECT id, name, code FROM "Company" WHERE id = $1',
+      [id]
+    );
     if (!existing) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    await db.company.delete({ where: { id } });
+    await query('DELETE FROM "Company" WHERE id = $1', [id]);
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Deleted company: ${existing.name} (${existing.code})`,
-        adminId: session.userId || null,
-      },
-    });
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Deleted company: ${existing.name} (${existing.code})`, session.userId || null]
+    );
 
     return NextResponse.json({ message: 'Company deleted' });
   } catch (error) {

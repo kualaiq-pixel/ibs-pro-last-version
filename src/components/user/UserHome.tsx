@@ -7,12 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Receipt, FileText, Calendar } from 'lucide-react';
 
 interface DashboardData {
-  totalIncome: number;
-  totalExpenses: number;
+  totalIncomeThisMonth: number;
+  totalExpensesThisMonth: number;
   pendingInvoices: number;
   activeBookings: number;
-  recentIncome: Array<{ id: string; date: string; description: string; amount: number }>;
-  recentBookings: Array<{ id: string; date: string; customer: string; serviceType: string }>;
+  recentIncome: Array<{ id: string; date: string; description: string; totalAmount: number; customerName?: string }>;
+  upcomingBookings: Array<{ id: string; bookingDate: string; customerName?: string; serviceType?: string }>;
 }
 
 export default function UserHome() {
@@ -46,14 +46,14 @@ export default function UserHome() {
   const summaryCards = [
     {
       title: t('user.income', locale),
-      value: data ? `${data.totalIncome.toFixed(2)}${cur}` : '0.00',
+      value: data ? `${data.totalIncomeThisMonth.toFixed(2)}${cur}` : '0.00',
       icon: DollarSign,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
     },
     {
       title: t('user.expenses', locale),
-      value: data ? `${data.totalExpenses.toFixed(2)}${cur}` : '0.00',
+      value: data ? `${data.totalExpensesThisMonth.toFixed(2)}${cur}` : '0.00',
       icon: Receipt,
       color: 'text-red-600',
       bg: 'bg-red-50',
@@ -115,11 +115,11 @@ export default function UserHome() {
                   {data.recentIncome.map((item) => (
                     <div key={item.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
                       <div>
-                        <p className="font-medium">{item.description}</p>
-                        <p className="text-xs text-muted-foreground">{item.date}</p>
+                        <p className="font-medium">{item.description || item.customerName || '—'}</p>
+                        <p className="text-xs text-muted-foreground">{item.date ? new Date(item.date).toLocaleDateString() : ''}</p>
                       </div>
                       <span className="font-semibold text-emerald-600">
-                        {item.amount.toFixed(2)}{cur}
+                        {(item.totalAmount || 0).toFixed(2)}{cur}
                       </span>
                     </div>
                   ))}
@@ -128,23 +128,23 @@ export default function UserHome() {
             </CardContent>
           </Card>
 
-          {/* Recent Bookings */}
+          {/* Upcoming Bookings */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">{t('user.bookings', locale)}</CardTitle>
             </CardHeader>
             <CardContent className="max-h-96 overflow-y-auto">
-              {data.recentBookings.length === 0 ? (
+              {data.upcomingBookings.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('common.noData', locale)}</p>
               ) : (
                 <div className="space-y-3">
-                  {data.recentBookings.map((item) => (
+                  {data.upcomingBookings.map((item) => (
                     <div key={item.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
                       <div>
-                        <p className="font-medium">{item.customer}</p>
-                        <p className="text-xs text-muted-foreground">{item.serviceType}</p>
+                        <p className="font-medium">{item.customerName || '—'}</p>
+                        <p className="text-xs text-muted-foreground">{item.serviceType || ''}</p>
                       </div>
-                      <span className="text-xs text-muted-foreground">{item.date}</span>
+                      <span className="text-xs text-muted-foreground">{item.bookingDate ? new Date(item.bookingDate).toLocaleDateString() : ''}</span>
                     </div>
                   ))}
                 </div>

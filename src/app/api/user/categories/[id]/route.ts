@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,7 +10,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const { id } = await params;
-    await db.category.delete({ where: { id, companyId: session.companyId } });
+    const result = await query(
+      `DELETE FROM "Category" WHERE id = $1 AND "companyId" = $2`,
+      [id, session.companyId]
+    );
+
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

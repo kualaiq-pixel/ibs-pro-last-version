@@ -52,8 +52,9 @@ interface IncomeRecord {
   description: string;
   category: string;
   paymentMethod: string;
-  amount: number;
+  totalAmount: number;
   vatRate: number;
+  customerName?: string;
 }
 
 export default function IncomePage() {
@@ -164,11 +165,11 @@ export default function IncomePage() {
         customerName: formCustomerMethod === 'individual' ? formName : undefined,
         customerEmail: formCustomerMethod === 'individual' ? formEmail : undefined,
         customerAddress: formCustomerMethod === 'individual' ? formAddress : undefined,
-        carMake: formCarMake || undefined,
-        carModel: formCarModel || undefined,
+        vehicleMake: formCarMake || undefined,
+        vehicleModel: formCarModel || undefined,
         licensePlate: formLicensePlate || undefined,
         services: formServices,
-        total: totalAmount,
+        totalAmount: totalAmount,
         description: formDescription,
         paymentMethod: formPaymentMethod,
         vatRate: parseFloat(formVatRate),
@@ -182,7 +183,7 @@ export default function IncomePage() {
       });
       if (res.ok) {
         setDialogOpen(false);
-        fetchItems();
+        loadItems();
       }
     } catch { /* ignore */ }
     setSaving(false);
@@ -197,7 +198,7 @@ export default function IncomePage() {
       });
       if (res.ok) {
         setDeleteId(null);
-        fetchItems();
+        loadItems();
       }
     } catch { /* ignore */ }
   };
@@ -240,7 +241,7 @@ export default function IncomePage() {
                       <TableCell>{item.date}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.description}</TableCell>
                       <TableCell><Badge variant="outline">{item.paymentMethod}</Badge></TableCell>
-                      <TableCell className="font-semibold">{item.amount.toFixed(2)}{cur}</TableCell>
+                      <TableCell className="font-semibold">{(item.totalAmount || 0).toFixed(2)}{cur}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 import { hashPassword } from '@/lib/auth';
 
@@ -15,7 +15,24 @@ export async function POST(
 
     const { id } = await params;
 
-    const registration = await db.registration.findUnique({ where: { id } });
+    const registration = await queryOne<{
+      id: string;
+      companyName: string;
+      username: string;
+      password: string;
+      phone: string | null;
+      businessId: string | null;
+      vatId: string | null;
+      iban: string | null;
+      address: string | null;
+      zipCode: string | null;
+      city: string | null;
+      country: string | null;
+      status: string;
+    }>(
+      'SELECT * FROM "Registration" WHERE id = $1',
+      [id]
+    );
     if (!registration) {
       return NextResponse.json({ error: 'Registration not found' }, { status: 404 });
     }
@@ -30,48 +47,39 @@ export async function POST(
       .replace(/[^a-z0-9]/g, '')
       .slice(0, 10) + Date.now().toString().slice(-4);
 
-    const company = await db.company.create({
-      data: {
-        name: registration.companyName,
-        code: companyCode,
-        businessId: registration.businessId,
-        vatId: registration.vatId,
-        iban: registration.iban,
-        address: registration.address,
-        zipCode: registration.zipCode,
-        city: registration.city,
-        country: registration.country,
-        phone: registration.phone,
-      },
-    });
+    const companyId = generateId();
+    await query(
+      `INSERT INTO "Company" (id, name, code, "businessId", "vatId", iban, phone, address, "zipCode", city, country, "isActive", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true, NOW(), NOW())`,
+      [companyId, registration.companyName, companyCode, registration.businessId, registration.vatId, registration.iban, registration.phone, registration.address, registration.zipCode, registration.city, registration.country]
+    );
 
     // Create user from registration data
     const hashedPassword = await hashPassword(registration.password);
-    await db.user.create({
-      data: {
-        username: registration.username,
-        password: hashedPassword,
-        role: 'Admin',
-        companyId: company.id,
-      },
-    });
+    await query(
+      `INSERT INTO "User" (id, username, password, role, "companyId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+      [generateId(), registration.username, hashedPassword, 'Admin', companyId]
+    );
 
     // Update registration status
-    await db.registration.update({
-      where: { id },
-      data: {
-        status: 'approved',
-        reviewedBy: session.username,
-      },
-    });
+    await query(
+      `UPDATE "Registration"
+       SET status = 'approved', "reviewedBy" = $1, "updatedAt" = NOW()
+       WHERE id = $2`,
+      [session.username, id]
+    );
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Approved registration: ${registration.companyName} by ${registration.username}`,
-        adminId: session.userId || null,
-      },
-    });
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Approved registration: ${registration.companyName} by ${registration.username}`, session.userId || null]
+    );
+
+    const company = await queryOne<Record<string, unknown>>(
+      'SELECT * FROM "Company" WHERE id = $1',
+      [companyId]
+    );
 
     return NextResponse.json({
       message: 'Registration approved',

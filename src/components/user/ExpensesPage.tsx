@@ -124,7 +124,7 @@ export default function ExpensesPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify(body),
       });
-      if (res.ok) { setDialogOpen(false); fetchItems(); }
+      if (res.ok) { setDialogOpen(false); loadItems(); }
     } catch { /* ignore */ }
     setSaving(false);
   };
@@ -133,7 +133,7 @@ export default function ExpensesPage() {
     if (!deleteId) return;
     try {
       const res = await fetch(`/api/user/expenses/${deleteId}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (res.ok) { setDeleteId(null); fetchItems(); }
+      if (res.ok) { setDeleteId(null); loadItems(); }
     } catch { /* ignore */ }
   };
 

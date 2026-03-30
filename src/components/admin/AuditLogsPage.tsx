@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, RefreshCw } from 'lucide-react';
+import { getAdminAuthHeaders } from './shared';
 
 interface AuditLog {
   id: string;
@@ -26,7 +27,7 @@ export default function AuditLogsPage() {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/audit-logs');
+      const res = await fetch('/api/admin/audit-logs', { headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setLogs(data);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -9,39 +9,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get distinct companyIds from SupportMessage
-    const messages = await db.supportMessage.findMany({
-      where: { companyId: { not: null } },
-      select: { companyId: true, senderName: true, createdAt: true },
-      distinct: ['companyId'],
-      orderBy: { createdAt: 'desc' },
-    });
+    // Get conversations: one row per companyId with company details and unread count
+    const conversations = await query<{
+      companyId: string;
+      companyName: string;
+      companyCode: string;
+      unreadCount: number;
+      lastMessageAt: Date;
+    }>(
+      `SELECT
+        sm."companyId",
+        c.name as "companyName",
+        c.code as "companyCode",
+        (SELECT COUNT(*) FROM "SupportMessage" WHERE "companyId" = sm."companyId" AND sender = 'user' AND "read" = false)::int as "unreadCount",
+        sm."createdAt" as "lastMessageAt"
+       FROM "SupportMessage" sm
+       JOIN "Company" c ON sm."companyId" = c.id
+       WHERE sm."companyId" IS NOT NULL
+       GROUP BY sm."companyId", c.name, c.code, sm."createdAt"
+       ORDER BY sm."createdAt" DESC`
+    );
 
-    // Get company details for each distinct companyId
-    const companyIds = messages.map((m) => m.companyId!).filter(Boolean);
-    const companies = await db.company.findMany({
-      where: { id: { in: companyIds } },
-      select: { id: true, name: true, code: true },
-    });
+    // Deduplicate by companyId, keeping the one with the latest lastMessageAt
+    const seen = new Map<string, typeof conversations.rows[0]>();
+    for (const row of conversations.rows) {
+      if (!seen.has(row.companyId)) {
+        seen.set(row.companyId, row);
+      }
+    }
 
-    // Get unread count per company
-    const unreadCounts = await db.supportMessage.groupBy({
-      by: ['companyId'],
-      where: {
-        companyId: { in: companyIds },
-        sender: 'user',
-        read: false,
-      },
-      _count: { id: true },
-    });
-
-    const result = companies.map((company) => ({
-      ...company,
-      unreadCount: unreadCounts.find((u) => u.companyId === company.id)?._count.id || 0,
-      lastMessageAt: messages.find((m) => m.companyId === company.id)?.createdAt || null,
-    }));
-
-    return NextResponse.json(result);
+    return NextResponse.json(Array.from(seen.values()));
   } catch (error) {
     console.error('Support GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch support conversations' }, { status: 500 });

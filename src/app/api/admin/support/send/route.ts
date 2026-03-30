@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
@@ -16,28 +16,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'companyId and message are required' }, { status: 400 });
     }
 
-    const company = await db.company.findUnique({ where: { id: companyId } });
+    const company = await queryOne<{ id: string; name: string }>(
+      'SELECT id, name FROM "Company" WHERE id = $1',
+      [companyId]
+    );
     if (!company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const supportMessage = await db.supportMessage.create({
-      data: {
-        sender: 'admin',
-        senderName: session.username,
-        message,
-        companyId,
-        read: true,
-      },
-    });
+    const id = generateId();
+    await query(
+      `INSERT INTO "SupportMessage" (id, sender, "senderName", message, "companyId", "read", "createdAt")
+       VALUES ($1, 'admin', $2, $3, $4, true, NOW())`,
+      [id, session.username, message, companyId]
+    );
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Sent support message to ${company.name}`,
-        adminId: session.userId || null,
-      },
-    });
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Sent support message to ${company.name}`, session.userId || null]
+    );
+
+    const supportMessage = await queryOne<Record<string, unknown>>(
+      'SELECT * FROM "SupportMessage" WHERE id = $1',
+      [id]
+    );
 
     return NextResponse.json(supportMessage, { status: 201 });
   } catch (error) {

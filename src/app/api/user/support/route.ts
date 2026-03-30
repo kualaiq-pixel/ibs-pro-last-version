@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryAll, generateId } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const messages = await db.supportMessage.findMany({
-      where: { companyId: session.companyId },
-      orderBy: { createdAt: 'asc' },
-    });
+    const messages = await queryAll(
+      `SELECT * FROM "SupportMessage" WHERE "companyId" = $1 ORDER BY "createdAt" ASC`,
+      [session.companyId]
+    );
 
     return NextResponse.json(messages);
   } catch (error: unknown) {
@@ -35,17 +35,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    const supportMessage = await db.supportMessage.create({
-      data: {
-        sender: 'user',
-        senderName: session.username,
-        message,
-        companyId: session.companyId,
-        read: false,
-      },
-    });
+    const id = generateId();
+    const result = await query(
+      `INSERT INTO "SupportMessage" (id, sender, "senderName", message, "companyId", "read", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, false, NOW())
+       RETURNING *`,
+      [id, 'user', session.username, message, session.companyId]
+    );
 
-    return NextResponse.json(supportMessage, { status: 201 });
+    return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

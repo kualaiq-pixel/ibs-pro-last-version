@@ -93,7 +93,7 @@ export default function ShkPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify(body),
       });
-      if (res.ok) { setDialogOpen(false); fetchLinks(); }
+      if (res.ok) { setDialogOpen(false); loadLinks(); }
     } catch { /* ignore */ }
     setSaving(false);
   };
@@ -102,7 +102,7 @@ export default function ShkPage() {
     if (!deleteId) return;
     try {
       const res = await fetch(`/api/user/shk-links/${deleteId}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (res.ok) { setDeleteId(null); fetchLinks(); }
+      if (res.ok) { setDeleteId(null); loadLinks(); }
     } catch { /* ignore */ }
   };
 

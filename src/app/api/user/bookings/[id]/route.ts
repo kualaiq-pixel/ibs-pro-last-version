@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -13,12 +13,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { status } = body;
 
-    const record = await db.booking.update({
-      where: { id, companyId: session.companyId },
-      data: { status },
-    });
+    const result = await query(
+      `UPDATE "Booking" SET status = $1, "updatedAt" = NOW() WHERE id = $2 AND "companyId" = $3 RETURNING *`,
+      [status, id, session.companyId]
+    );
 
-    return NextResponse.json(record);
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0]);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -33,7 +37,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const { id } = await params;
-    await db.booking.delete({ where: { id, companyId: session.companyId } });
+    const result = await query(
+      `DELETE FROM "Booking" WHERE id = $1 AND "companyId" = $2`,
+      [id, session.companyId]
+    );
+
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

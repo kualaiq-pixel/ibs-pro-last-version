@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryAll, generateId } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const services = await db.service.findMany({
-      where: { companyId: session.companyId },
-      orderBy: { name: 'asc' },
-    });
+    const services = await queryAll(
+      `SELECT * FROM "Service" WHERE "companyId" = $1 ORDER BY name ASC`,
+      [session.companyId]
+    );
 
     return NextResponse.json(services);
   } catch (error: unknown) {
@@ -31,14 +31,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name } = body;
 
-    const service = await db.service.create({
-      data: {
-        name,
-        companyId: session.companyId,
-      },
-    });
+    const id = generateId();
+    const result = await query(
+      `INSERT INTO "Service" (id, name, "companyId") VALUES ($1, $2, $3) RETURNING *`,
+      [id, name, session.companyId]
+    );
 
-    return NextResponse.json(service, { status: 201 });
+    return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Pencil, Trash2, Users } from 'lucide-react';
+import { getAdminAuthHeaders } from './shared';
 
 interface User {
   id: string;
@@ -55,8 +56,8 @@ export default function UsersPage() {
   const fetchData = useCallback(async () => {
     try {
       const [usersRes, companiesRes] = await Promise.all([
-        fetch('/api/admin/users'),
-        fetch('/api/admin/companies'),
+        fetch('/api/admin/users', { headers: getAdminAuthHeaders() }),
+        fetch('/api/admin/companies', { headers: getAdminAuthHeaders() }),
       ]);
       if (!usersRes.ok || !companiesRes.ok) throw new Error('Failed');
       const [usersData, companiesData] = await Promise.all([usersRes.json(), companiesRes.json()]);
@@ -90,7 +91,7 @@ export default function UsersPage() {
       const method = editingUser ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminAuthHeaders(),
         body: JSON.stringify(form),
       });
       if (!res.ok) {
@@ -110,7 +111,7 @@ export default function UsersPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed');
       toast({ title: 'Success', description: 'User deleted' });
       setUsers((prev) => prev.filter((u) => u.id !== id));

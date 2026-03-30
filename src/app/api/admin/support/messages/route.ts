@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -16,22 +16,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
     }
 
-    const messages = await db.supportMessage.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'asc' },
-    });
+    const messages = await query<Record<string, unknown>>(
+      `SELECT * FROM "SupportMessage" WHERE "companyId" = $1 ORDER BY "createdAt" ASC`,
+      [companyId]
+    );
 
     // Mark user messages as read
-    await db.supportMessage.updateMany({
-      where: {
-        companyId,
-        sender: 'user',
-        read: false,
-      },
-      data: { read: true },
-    });
+    await query(
+      `UPDATE "SupportMessage" SET "read" = true WHERE "companyId" = $1 AND sender = 'user' AND "read" = false`,
+      [companyId]
+    );
 
-    return NextResponse.json(messages);
+    return NextResponse.json(messages.rows);
   } catch (error) {
     console.error('Support messages GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });

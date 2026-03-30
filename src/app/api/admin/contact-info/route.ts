@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { queryAll, queryOne, generateId } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -9,9 +9,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contactInfo = await db.contactInfo.findMany({
-      orderBy: { id: 'asc' },
-    });
+    const contactInfo = await queryAll<Record<string, unknown>>(
+      'SELECT * FROM "ContactInfo" ORDER BY id ASC'
+    );
 
     return NextResponse.json(contactInfo);
   } catch (error) {
@@ -34,22 +34,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Key and value are required' }, { status: 400 });
     }
 
-    const existing = await db.contactInfo.findUnique({ where: { key } });
+    const existing = await queryOne<{ id: string }>(
+      'SELECT id FROM "ContactInfo" WHERE key = $1',
+      [key]
+    );
     if (existing) {
       return NextResponse.json({ error: 'Key already exists' }, { status: 400 });
     }
 
-    const contactInfo = await db.contactInfo.create({
-      data: { key, value },
-    });
+    const id = generateId();
+    await query(
+      'INSERT INTO "ContactInfo" (id, key, value) VALUES ($1, $2, $3)',
+      [id, key, value]
+    );
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Created contact info: ${key}`,
-        adminId: session.userId || null,
-      },
-    });
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Created contact info: ${key}`, session.userId || null]
+    );
+
+    const contactInfo = await queryOne<Record<string, unknown>>(
+      'SELECT * FROM "ContactInfo" WHERE id = $1',
+      [id]
+    );
 
     return NextResponse.json(contactInfo, { status: 201 });
   } catch (error) {

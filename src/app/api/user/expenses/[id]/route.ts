@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -13,20 +13,55 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { date, amount, category, description, paymentMethod, vatRate, customerId } = body;
 
-    const record = await db.expense.update({
-      where: { id, companyId: session.companyId },
-      data: {
-        ...(date !== undefined && { date: new Date(date) }),
-        ...(amount !== undefined && { amount }),
-        ...(category !== undefined && { category }),
-        ...(description !== undefined && { description }),
-        ...(paymentMethod !== undefined && { paymentMethod }),
-        ...(vatRate !== undefined && { vatRate }),
-        ...(customerId !== undefined && { customerId }),
-      },
-    });
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
 
-    return NextResponse.json(record);
+    if (date !== undefined) {
+      setClauses.push(`date = $${paramIndex++}`);
+      values.push(new Date(date).toISOString());
+    }
+    if (amount !== undefined) {
+      setClauses.push(`amount = $${paramIndex++}`);
+      values.push(amount);
+    }
+    if (category !== undefined) {
+      setClauses.push(`category = $${paramIndex++}`);
+      values.push(category);
+    }
+    if (description !== undefined) {
+      setClauses.push(`description = $${paramIndex++}`);
+      values.push(description);
+    }
+    if (paymentMethod !== undefined) {
+      setClauses.push(`"paymentMethod" = $${paramIndex++}`);
+      values.push(paymentMethod);
+    }
+    if (vatRate !== undefined) {
+      setClauses.push(`"vatRate" = $${paramIndex++}`);
+      values.push(vatRate);
+    }
+    if (customerId !== undefined) {
+      setClauses.push(`"customerId" = $${paramIndex++}`);
+      values.push(customerId);
+    }
+
+    if (setClauses.length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    setClauses.push(`"updatedAt" = NOW()`);
+    values.push(id);
+    values.push(session.companyId);
+
+    const sql = `UPDATE "Expense" SET ${setClauses.join(', ')} WHERE id = $${paramIndex++} AND "companyId" = $${paramIndex} RETURNING *`;
+    const result = await query(sql, values);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0]);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -41,7 +76,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const { id } = await params;
-    await db.expense.delete({ where: { id, companyId: session.companyId } });
+    const result = await query(
+      `DELETE FROM "Expense" WHERE id = $1 AND "companyId" = $2`,
+      [id, session.companyId]
+    );
+
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

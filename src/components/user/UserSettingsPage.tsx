@@ -69,7 +69,7 @@ export default function UserSettingsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify(settings),
       });
-      if (res.ok) fetchSettings();
+      if (res.ok) loadSettings();
     } catch { /* ignore */ }
     setSaving(false);
   };
@@ -82,7 +82,7 @@ export default function UserSettingsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify({ name: newService.trim() }),
       });
-      if (res.ok) { setNewService(''); fetchSettings(); }
+      if (res.ok) { setNewService(''); loadSettings(); }
     } catch { /* ignore */ }
   };
 
@@ -93,7 +93,7 @@ export default function UserSettingsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify({ name }),
       });
-      if (res.ok) fetchSettings();
+      if (res.ok) loadSettings();
     } catch { /* ignore */ }
   };
 
@@ -105,7 +105,7 @@ export default function UserSettingsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify({ type, name: name.trim() }),
       });
-      if (res.ok) fetchSettings();
+      if (res.ok) loadSettings();
     } catch { /* ignore */ }
   };
 
@@ -116,7 +116,7 @@ export default function UserSettingsPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify({ type, name }),
       });
-      if (res.ok) fetchSettings();
+      if (res.ok) loadSettings();
     } catch { /* ignore */ }
   };
 

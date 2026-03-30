@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -9,21 +9,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [companies, users, customers, latestLogs] = await Promise.all([
-      db.company.count(),
-      db.user.count(),
-      db.customer.count(),
-      db.auditLog.findMany({
-        orderBy: { timestamp: 'desc' },
-        take: 10,
-      }),
+    const [companiesResult, usersResult, customersResult, logsResult] = await Promise.all([
+      query<{ count: string }>('SELECT COUNT(*)::text as count FROM "Company"'),
+      query<{ count: string }>('SELECT COUNT(*)::text as count FROM "User"'),
+      query<{ count: string }>('SELECT COUNT(*)::text as count FROM "Customer"'),
+      query<Record<string, unknown>>(
+        'SELECT * FROM "AuditLog" ORDER BY "timestamp" DESC LIMIT 10'
+      ),
     ]);
 
     return NextResponse.json({
-      companies,
-      users,
-      customers,
-      latestLogs,
+      companies: parseInt(companiesResult.rows[0]?.count || '0', 10),
+      users: parseInt(usersResult.rows[0]?.count || '0', 10),
+      customers: parseInt(customersResult.rows[0]?.count || '0', 10),
+      latestLogs: logsResult.rows,
     });
   } catch (error) {
     console.error('Stats error:', error);

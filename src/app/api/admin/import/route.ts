@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, generateId } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
@@ -16,117 +16,239 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No data provided' }, { status: 400 });
     }
 
-    // Delete in correct order due to foreign keys
-    // InvoiceItem, SupportMessage, AuditLog, Certificate, WorkOrder, Booking,
-    // Invoice, Income, Expense, Customer, User, Service, Category, ShkLink,
-    // Registration, ContactInfo, Company, Admin
-    await db.invoiceItem.deleteMany();
-    await db.supportMessage.deleteMany();
-    await db.auditLog.deleteMany();
-    await db.certificate.deleteMany();
-    await db.workOrder.deleteMany();
-    await db.booking.deleteMany();
-    await db.invoice.deleteMany();
-    await db.income.deleteMany();
-    await db.expense.deleteMany();
-    await db.customer.deleteMany();
-    await db.user.deleteMany();
-    await db.service.deleteMany();
-    await db.category.deleteMany();
-    await db.shkLink.deleteMany();
-    await db.registration.deleteMany();
-    await db.contactInfo.deleteMany();
-    await db.company.deleteMany();
-    await db.admin.deleteMany();
-
-    // Insert in reverse order: Admin, Company, ContactInfo, Registration,
-    // ShkLink, Category, Service, User, Customer, Expense, Income, Invoice,
-    // Booking, WorkOrder, Certificate, AuditLog, SupportMessage, InvoiceItem
+    // Delete in FK-safe order
+    await query('DELETE FROM "InvoiceItem"');
+    await query('DELETE FROM "SupportMessage"');
+    await query('DELETE FROM "AuditLog"');
+    await query('DELETE FROM "Certificate"');
+    await query('DELETE FROM "WorkOrder"');
+    await query('DELETE FROM "Booking"');
+    await query('DELETE FROM "Invoice"');
+    await query('DELETE FROM "Income"');
+    await query('DELETE FROM "Expense"');
+    await query('DELETE FROM "Customer"');
+    await query('DELETE FROM "User"');
+    await query('DELETE FROM "Service"');
+    await query('DELETE FROM "Category"');
+    await query('DELETE FROM "ShkLink"');
+    await query('DELETE FROM "Registration"');
+    await query('DELETE FROM "ContactInfo"');
+    await query('DELETE FROM "Company"');
+    await query('DELETE FROM "Admin"');
 
     const counts: Record<string, number> = {};
 
-    if (data.admins?.length) {
-      counts.admins = (await db.admin.createMany({ data: data.admins })).count;
-    }
-    if (data.companies?.length) {
-      counts.companies = (await db.company.createMany({ data: data.companies })).count;
-    }
-    if (data.contactInfo?.length) {
-      counts.contactInfo = (await db.contactInfo.createMany({ data: data.contactInfo })).count;
-    }
-    if (data.registrations?.length) {
-      counts.registrations = (await db.registration.createMany({ data: data.registrations })).count;
-    }
-    if (data.shkLinks?.length) {
-      counts.shkLinks = (await db.shkLink.createMany({ data: data.shkLinks })).count;
-    }
-    if (data.categories?.length) {
-      counts.categories = (await db.category.createMany({ data: data.categories })).count;
-    }
-    if (data.services?.length) {
-      counts.services = (await db.service.createMany({ data: data.services })).count;
-    }
-    if (data.users?.length) {
-      counts.users = (await db.user.createMany({ data: data.users })).count;
-    }
-    if (data.customers?.length) {
-      counts.customers = (await db.customer.createMany({ data: data.customers })).count;
-    }
-    if (data.expenseRecords?.length) {
-      counts.expenseRecords = (await db.expense.createMany({ data: data.expenseRecords })).count;
-    }
-    if (data.incomeRecords?.length) {
-      counts.incomeRecords = (await db.income.createMany({ data: data.incomeRecords })).count;
+    // Helper to bulk insert an array of records into a table
+    async function bulkInsert(
+      table: string,
+      records: Record<string, unknown>[],
+      columns: string[],
+      skipColumns: string[] = []
+    ) {
+      if (!records?.length) return;
+      const filteredCols = columns.filter((c) => !skipColumns.includes(c));
+      const placeholders = filteredCols.map((_, i) => `$${i + 1}`).join(', ');
+      const colList = filteredCols.map((c) => `"${c}"`).join(', ');
+
+      for (const record of records) {
+        const values = filteredCols.map((col) => {
+          const val = record[col];
+          // Handle JSON fields - stringify objects
+          if (val !== null && typeof val === 'object' && !(val instanceof Date)) {
+            return JSON.stringify(val);
+          }
+          return val ?? null;
+        });
+        await query(
+          `INSERT INTO "${table}" (${colList}) VALUES (${placeholders})`,
+          values
+        );
+      }
+      counts[table] = (counts[table] || 0) + records.length;
     }
 
-    // Invoices need special handling: insert invoices first, then items with correct invoiceId mapping
+    // Insert Admins
+    if (data.admins?.length) {
+      await bulkInsert('Admin', data.admins, ['id', 'username', 'password', 'createdAt', 'updatedAt']);
+    }
+
+    // Insert Companies
+    if (data.companies?.length) {
+      await bulkInsert('Company', data.companies, [
+        'id', 'name', 'code', 'businessId', 'vatId', 'iban', 'phone', 'email',
+        'address', 'zipCode', 'city', 'country', 'currency', 'trialStart',
+        'trialEnd', 'isActive', 'createdAt', 'updatedAt',
+      ]);
+    }
+
+    // Insert ContactInfo
+    if (data.contactInfo?.length) {
+      await bulkInsert('ContactInfo', data.contactInfo, ['id', 'key', 'value']);
+    }
+
+    // Insert Registrations
+    if (data.registrations?.length) {
+      await bulkInsert('Registration', data.registrations, [
+        'id', 'companyName', 'username', 'password', 'phone', 'businessId',
+        'vatId', 'iban', 'address', 'zipCode', 'city', 'country', 'status',
+        'trialStart', 'trialEnd', 'reviewedBy', 'createdAt', 'updatedAt',
+      ]);
+    }
+
+    // Insert ShkLinks
+    if (data.shkLinks?.length) {
+      await bulkInsert('ShkLink', data.shkLinks, [
+        'id', 'name', 'url', 'username', 'password', 'companyId',
+      ]);
+    }
+
+    // Insert Categories
+    if (data.categories?.length) {
+      await bulkInsert('Category', data.categories, ['id', 'name', 'type', 'companyId']);
+    }
+
+    // Insert Services
+    if (data.services?.length) {
+      await bulkInsert('Service', data.services, ['id', 'name', 'companyId']);
+    }
+
+    // Insert Users
+    if (data.users?.length) {
+      await bulkInsert('User', data.users, [
+        'id', 'username', 'password', 'role', 'companyId', 'createdAt', 'updatedAt',
+      ]);
+    }
+
+    // Insert Customers
+    if (data.customers?.length) {
+      await bulkInsert('Customer', data.customers, [
+        'id', 'name', 'email', 'address', 'companyId', 'createdAt', 'updatedAt',
+      ]);
+    }
+
+    // Insert Expenses
+    if (data.expenseRecords?.length) {
+      await bulkInsert('Expense', data.expenseRecords, [
+        'id', 'date', 'description', 'category', 'amount', 'vatRate',
+        'paymentMethod', 'companyId', 'customerId', 'createdAt', 'updatedAt',
+      ]);
+    }
+
+    // Insert Incomes
+    if (data.incomeRecords?.length) {
+      await bulkInsert('Income', data.incomeRecords, [
+        'id', 'date', 'description', 'category', 'customerId', 'vehicleMake',
+        'vehicleModel', 'licensePlate', 'services', 'totalAmount', 'vatRate',
+        'paymentMethod', 'invoiceId', 'companyId', 'createdAt', 'updatedAt',
+      ]);
+    }
+
+    // Insert Invoices with ID mapping for items
     if (data.invoices?.length) {
-      // Build a map of old invoice id -> new invoice id
       const idMap: Record<string, string> = {};
+
       for (const inv of data.invoices) {
         const oldId = inv.id;
-        const { id: _, items, ...invoiceData } = inv;
-        const created = await db.invoice.create({ data: invoiceData as never });
-        idMap[oldId] = created.id;
-        counts.invoices = (counts.invoices || 0) + 1;
+        const newId = generateId();
+        idMap[oldId] = newId;
+
+        await query(
+          `INSERT INTO "Invoice" (id, "invoiceNumber", date, "customerId", total, "vatRate", status, "paymentMethod", "referenceNumber", "companyId", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [
+            newId,
+            inv.invoiceNumber,
+            inv.date ? new Date(inv.date) : null,
+            inv.customerId || null,
+            inv.total,
+            inv.vatRate ?? 25.5,
+            inv.status || 'Pending',
+            inv.paymentMethod || null,
+            inv.referenceNumber || null,
+            inv.companyId || null,
+            inv.createdAt ? new Date(inv.createdAt) : new Date(),
+            inv.updatedAt ? new Date(inv.updatedAt) : new Date(),
+          ]
+        );
+        counts['invoices'] = (counts['invoices'] || 0) + 1;
       }
-      // Insert invoice items with mapped invoiceId
+
+      // Insert InvoiceItems with mapped invoiceId
       for (const inv of data.invoices) {
         if (inv.items?.length) {
           for (const item of inv.items) {
-            const { id: _, invoiceId, ...itemData } = item;
-            await db.invoiceItem.create({
-              data: { ...itemData, invoiceId: idMap[invoiceId] || invoiceId } as never,
-            });
-            counts.invoiceItems = (counts.invoiceItems || 0) + 1;
+            const newId = generateId();
+            const mappedInvoiceId = idMap[item.invoiceId] || item.invoiceId;
+            await query(
+              `INSERT INTO "InvoiceItem" (id, description, quantity, "unitPrice", "invoiceId")
+               VALUES ($1, $2, $3, $4, $5)`,
+              [
+                newId,
+                item.description || null,
+                item.quantity ?? 1,
+                item.unitPrice ?? 0,
+                mappedInvoiceId,
+              ]
+            );
+            counts['invoiceItems'] = (counts['invoiceItems'] || 0) + 1;
           }
         }
       }
     }
 
+    // Insert Bookings
     if (data.bookings?.length) {
-      counts.bookings = (await db.booking.createMany({ data: data.bookings })).count;
-    }
-    if (data.workOrders?.length) {
-      counts.workOrders = (await db.workOrder.createMany({ data: data.workOrders })).count;
-    }
-    if (data.certificates?.length) {
-      counts.certificates = (await db.certificate.createMany({ data: data.certificates })).count;
-    }
-    if (data.auditLogs?.length) {
-      counts.auditLogs = (await db.auditLog.createMany({ data: data.auditLogs })).count;
-    }
-    if (data.supportMessages?.length) {
-      counts.supportMessages = (await db.supportMessage.createMany({ data: data.supportMessages })).count;
+      await bulkInsert('Booking', data.bookings, [
+        'id', 'customerId', 'vehicleMake', 'vehicleModel', 'licensePlate',
+        'serviceType', 'bookingDate', 'notes', 'status', 'companyId',
+        'createdAt', 'updatedAt',
+      ]);
     }
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Imported data. Record counts: ${JSON.stringify(counts)}`,
-        adminId: session.userId || null,
-      },
-    });
+    // Insert WorkOrders
+    if (data.workOrders?.length) {
+      await bulkInsert('WorkOrder', data.workOrders, [
+        'id', 'workOrderNumber', 'date', 'customerId', 'vehicleMake',
+        'vehicleModel', 'licensePlate', 'technician', 'estimatedHours',
+        'actualHours', 'mileage', 'workDescription', 'parts', 'partsCost',
+        'laborCost', 'totalCost', 'status', 'recommendations',
+        'nextServiceDue', 'guarantee', 'warrantyDetails', 'qualityCheck',
+        'technicianNotes', 'companyId', 'createdAt', 'updatedAt',
+      ]);
+    }
+
+    // Insert Certificates
+    if (data.certificates?.length) {
+      await bulkInsert('Certificate', data.certificates, [
+        'id', 'certificateNumber', 'issueDate', 'customerId', 'vehicleMake',
+        'vehicleModel', 'licensePlate', 'maintenanceType', 'validUntil',
+        'status', 'nextMaintenanceDate', 'maintenanceInterval', 'technician',
+        'inspectionResults', 'technicianNotes', 'recommendations',
+        'serviceHistory', 'remarks', 'workOrderId', 'companyId',
+        'createdAt', 'updatedAt',
+      ]);
+    }
+
+    // Insert AuditLogs
+    if (data.auditLogs?.length) {
+      await bulkInsert('AuditLog', data.auditLogs, [
+        'id', 'timestamp', 'user', 'action', 'adminId',
+      ]);
+    }
+
+    // Insert SupportMessages
+    if (data.supportMessages?.length) {
+      await bulkInsert('SupportMessage', data.supportMessages, [
+        'id', 'sender', 'senderName', 'message', 'companyId', 'read', 'createdAt',
+      ]);
+    }
+
+    // Log the import
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Imported data. Record counts: ${JSON.stringify(counts)}`, session.userId || null]
+    );
 
     return NextResponse.json({
       message: 'Data imported successfully',

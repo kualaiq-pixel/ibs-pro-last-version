@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { queryAll, queryOne, generateId } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 import { hashPassword } from '@/lib/auth';
 
@@ -10,19 +10,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const users = await db.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        company: {
-          select: { id: true, name: true, code: true },
-        },
-      },
-    });
+    const users = await queryAll<Record<string, unknown>>(
+      `SELECT u.id, u.username, u.role, u."companyId", u."createdAt", u."updatedAt",
+              c.name as "companyName", c.code as "companyCode"
+       FROM "User" u
+       JOIN "Company" c ON u."companyId" = c.id
+       ORDER BY u."createdAt" DESC`
+    );
 
-    // Return users without password hashes
-    const safeUsers = users.map(({ password: _, ...user }) => user);
-
-    return NextResponse.json(safeUsers);
+    return NextResponse.json(users);
   } catch (error) {
     console.error('Users GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
@@ -43,38 +39,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username, password, and companyId are required' }, { status: 400 });
     }
 
-    const company = await db.company.findUnique({ where: { id: companyId } });
+    const company = await queryOne<{ id: string; name: string }>(
+      'SELECT id, name FROM "Company" WHERE id = $1',
+      [companyId]
+    );
     if (!company) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const existingUser = await db.user.findFirst({ where: { username } });
+    const existingUser = await queryOne<{ id: string }>(
+      'SELECT id FROM "User" WHERE username = $1',
+      [username]
+    );
     if (existingUser) {
       return NextResponse.json({ error: 'Username already exists' }, { status: 400 });
     }
 
     const hashedPassword = await hashPassword(password);
+    const id = generateId();
+    const userRole = role || 'Staff';
 
-    const user = await db.user.create({
-      data: {
-        username,
-        password: hashedPassword,
-        role: role || 'Staff',
-        companyId,
-      },
-    });
+    await query(
+      `INSERT INTO "User" (id, username, password, role, "companyId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+      [id, username, hashedPassword, userRole, companyId]
+    );
 
-    await db.auditLog.create({
-      data: {
-        user: session.username,
-        action: `Created user: ${username} (${role || 'Staff'}) in company: ${company.name}`,
-        adminId: session.userId || null,
-      },
-    });
+    await query(
+      `INSERT INTO "AuditLog" (id, user, action, "adminId", timestamp)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [generateId(), session.username, `Created user: ${username} (${userRole}) in company: ${company.name}`, session.userId || null]
+    );
 
-    // Return without password hash
-    const { password: _, ...safeUser } = user;
-    return NextResponse.json(safeUser, { status: 201 });
+    const user = await queryOne<Record<string, unknown>>(
+      `SELECT u.id, u.username, u.role, u."companyId", u."createdAt", u."updatedAt",
+              c.name as "companyName", c.code as "companyCode"
+       FROM "User" u
+       JOIN "Company" c ON u."companyId" = c.id
+       WHERE u.id = $1`,
+      [id]
+    );
+
+    return NextResponse.json(user, { status: 201 });
   } catch (error) {
     console.error('Users POST error:', error);
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });

@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Pencil, Trash2, Building2 } from 'lucide-react';
+import { getAdminAuthHeaders } from './shared';
 
 interface Company {
   id: string;
@@ -47,7 +48,7 @@ export default function CompaniesPage() {
 
   const fetchCompanies = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/companies');
+      const res = await fetch('/api/admin/companies', { headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setCompanies(data);
@@ -85,7 +86,7 @@ export default function CompaniesPage() {
       const method = editingCompany ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminAuthHeaders(),
         body: JSON.stringify(form),
       });
       if (!res.ok) {
@@ -105,7 +106,7 @@ export default function CompaniesPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/admin/companies/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/companies/${id}`, { method: 'DELETE', headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed');
       toast({ title: 'Success', description: 'Company deleted' });
       setCompanies((prev) => prev.filter((c) => c.id !== id));

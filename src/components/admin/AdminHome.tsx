@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Building2, Users, UserCheck, FileText } from 'lucide-react';
+import { getAdminAuthHeaders } from './shared';
 
 interface Stats {
   totalCompanies: number;
@@ -27,10 +28,15 @@ export default function AdminHome() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/admin/stats');
+      const res = await fetch('/api/admin/stats', { headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
-      setStats(data);
+      setStats({
+        totalCompanies: data.companies,
+        totalUsers: data.users,
+        totalCustomers: data.customers,
+        recentLogs: data.latestLogs,
+      });
     } catch {
       toast({ title: 'Error', description: 'Failed to load dashboard stats', variant: 'destructive' });
     } finally {

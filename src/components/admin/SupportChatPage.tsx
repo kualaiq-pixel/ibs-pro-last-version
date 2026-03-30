@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Send, Building2, MessageCircle } from 'lucide-react';
+import { getAdminAuthHeaders } from './shared';
 
 interface CompanyChat {
   id: string;
@@ -40,7 +41,7 @@ export default function SupportChatPage() {
 
   const fetchCompanies = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/support/companies');
+      const res = await fetch('/api/admin/support/companies', { headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setCompanies(data);
@@ -61,7 +62,7 @@ export default function SupportChatPage() {
     const fetchMessages = async () => {
       setLoadingMessages(true);
       try {
-        const res = await fetch(`/api/admin/support/messages/${selectedCompanyId}`);
+        const res = await fetch(`/api/admin/support/messages/${selectedCompanyId}`, { headers: getAdminAuthHeaders() });
         if (!res.ok) throw new Error('Failed');
         const data = await res.json();
         setMessages(data);
@@ -84,7 +85,7 @@ export default function SupportChatPage() {
     try {
       const res = await fetch('/api/admin/support/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminAuthHeaders(),
         body: JSON.stringify({ companyId: selectedCompanyId, message: newMessage.trim() }),
       });
       if (!res.ok) throw new Error('Failed to send');

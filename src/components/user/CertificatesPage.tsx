@@ -162,8 +162,8 @@ export default function CertificatesPage() {
         customerName: formCustomerSource === 'individual' ? formName : undefined,
         customerEmail: formCustomerSource === 'individual' ? formEmail : undefined,
         customerAddress: formCustomerSource === 'individual' ? formAddress : undefined,
-        carMake: formCarMake || undefined,
-        carModel: formCarModel || undefined,
+        vehicleMake: formCarMake || undefined,
+        vehicleModel: formCarModel || undefined,
         licensePlate: formLicensePlate || undefined,
         issueDate: formIssueDate,
         validUntil: formValidUntil,
@@ -183,7 +183,7 @@ export default function CertificatesPage() {
         headers: getAuthHeaders(),
         body: JSON.stringify(body),
       });
-      if (res.ok) { setDialogOpen(false); fetchItems(); }
+      if (res.ok) { setDialogOpen(false); loadItems(); }
     } catch { /* ignore */ }
     setSaving(false);
   };
@@ -192,7 +192,7 @@ export default function CertificatesPage() {
     if (!deleteId) return;
     try {
       const res = await fetch(`/api/user/certificates/${deleteId}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (res.ok) { setDeleteId(null); fetchItems(); }
+      if (res.ok) { setDeleteId(null); loadItems(); }
     } catch { /* ignore */ }
   };
 

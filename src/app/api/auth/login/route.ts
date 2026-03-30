@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { queryOne } from '@/lib/db';
 import { verifyPassword } from '@/lib/auth';
 import crypto from 'crypto';
 
@@ -8,7 +8,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { companyCode, username, password } = body;
 
-    // Validate required fields
     if (!companyCode || !username || !password) {
       return NextResponse.json(
         { error: 'companyCode, username, and password are required' },
@@ -16,67 +15,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find User by username and companyCode (via company relation)
-    const user = await db.user.findFirst({
-      where: {
-        username,
-        company: {
-          code: companyCode,
-        },
-      },
-      include: {
-        company: true,
-      },
-    });
+    // Find user by username and company code
+    const user = await queryOne<any>(
+      `SELECT u.*, c.name as "companyName", c."isActive" as "companyActive",
+              c."trialEnd" as "companyTrialEnd"
+       FROM "User" u
+       JOIN "Company" c ON u."companyId" = c.id
+       WHERE u.username = $1 AND c.code = $2`,
+      [username, companyCode]
+    );
 
-    // If not found, return 401
     if (!user) {
-      return NextResponse.json(
-        { error: 'invalidCredentials' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'invalidCredentials' }, { status: 401 });
     }
 
-    // Check if company is active
-    if (!user.company.isActive) {
-      return NextResponse.json(
-        { error: 'accountRejected' },
-        { status: 403 }
-      );
+    if (!user.companyActive) {
+      return NextResponse.json({ error: 'accountRejected' }, { status: 403 });
     }
 
-    // Check if trial is not expired
-    if (user.company.trialEnd && new Date() > user.company.trialEnd) {
-      return NextResponse.json(
-        { error: 'accountRejected' },
-        { status: 403 }
-      );
+    if (user.companyTrialEnd && new Date() > new Date(user.companyTrialEnd)) {
+      return NextResponse.json({ error: 'accountRejected' }, { status: 403 });
     }
 
-    // Verify password
     const isPasswordValid = await verifyPassword(password, user.password);
-
     if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: 'invalidCredentials' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'invalidCredentials' }, { status: 401 });
     }
 
-    // Create session token
+    // Create session
     const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await db.session.create({
-      data: {
-        userId: user.id,
-        userType: 'user',
-        username: user.username,
-        companyId: user.companyId,
-        token,
-        expiresAt,
-      },
-    });
+    await queryOne(
+      `INSERT INTO "Session" (id, "userId", "userType", username, "companyId", token, "expiresAt", "createdAt")
+       VALUES ($1, $2, 'user', $3, $4, $5, $6, NOW())`,
+      [crypto.randomUUID(), user.id, user.username, user.companyId, token, expiresAt]
+    );
 
     return NextResponse.json({
       token,
@@ -85,14 +59,11 @@ export async function POST(request: NextRequest) {
         username: user.username,
         role: user.role,
         companyId: user.companyId,
-        companyName: user.company.name,
+        companyName: user.companyName,
       },
     });
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

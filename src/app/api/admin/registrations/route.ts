@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { queryAll } from '@/lib/db';
 import { verifyAdmin } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -12,10 +12,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'pending';
 
-    const registrations = await db.registration.findMany({
-      where: status !== 'all' ? { status } : undefined,
-      orderBy: { createdAt: 'desc' },
-    });
+    let registrations;
+    if (status === 'all') {
+      registrations = await queryAll<Record<string, unknown>>(
+        `SELECT * FROM "Registration" ORDER BY "createdAt" DESC`
+      );
+    } else {
+      registrations = await queryAll<Record<string, unknown>>(
+        `SELECT * FROM "Registration" WHERE status = $1 ORDER BY "createdAt" DESC`,
+        [status]
+      );
+    }
 
     return NextResponse.json(registrations);
   } catch (error) {

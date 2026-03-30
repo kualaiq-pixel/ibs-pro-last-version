@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryOne, generateId } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -9,11 +9,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const links = await db.shkLink.findMany({
-      where: { companyId: session.companyId },
-    });
+    const links = await query(
+      `SELECT * FROM "ShkLink" WHERE "companyId" = $1`,
+      [session.companyId]
+    );
 
-    return NextResponse.json(links);
+    return NextResponse.json(links.rows);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -31,30 +32,28 @@ export async function POST(request: NextRequest) {
     const { name, url, username, password } = body;
 
     // Check if SHK link already exists for this company
-    const existing = await db.shkLink.findFirst({
-      where: { companyId: session.companyId },
-    });
+    const existing = await queryOne(
+      `SELECT * FROM "ShkLink" WHERE "companyId" = $1`,
+      [session.companyId]
+    );
 
     if (existing) {
-      // Update existing
-      const updated = await db.shkLink.update({
-        where: { id: existing.id },
-        data: { name, url, username, password },
-      });
-      return NextResponse.json(updated);
+      const result = await query(
+        `UPDATE "ShkLink" SET name = $1, url = $2, username = $3, password = $4, "updatedAt" = NOW() WHERE id = $5 RETURNING *`,
+        [name, url, username, password, existing.id]
+      );
+      return NextResponse.json(result.rows[0]);
     }
 
-    const link = await db.shkLink.create({
-      data: {
-        name,
-        url,
-        username,
-        password,
-        companyId: session.companyId,
-      },
-    });
+    const id = generateId();
+    const result = await query(
+      `INSERT INTO "ShkLink" (id, name, url, username, password, "companyId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING *`,
+      [id, name, url, username, password, session.companyId]
+    );
 
-    return NextResponse.json(link, { status: 201 });
+    return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

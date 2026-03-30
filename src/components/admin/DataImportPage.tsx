@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Database, Download, Upload, AlertTriangle } from 'lucide-react';
+import { getAdminAuthHeaders } from './shared';
 
 export default function DataImportPage() {
   const { locale } = useAppStore();
@@ -18,7 +19,7 @@ export default function DataImportPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const res = await fetch('/api/admin/export');
+      const res = await fetch('/api/admin/export', { headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Export failed');
       const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -48,7 +49,7 @@ export default function DataImportPage() {
       const data = JSON.parse(text);
       const res = await fetch('/api/admin/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminAuthHeaders(),
         body: JSON.stringify(data),
       });
       if (!res.ok) {

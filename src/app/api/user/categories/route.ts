@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query, queryAll, generateId } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
@@ -12,15 +12,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
-    const where: { companyId: string; type?: string } = { companyId: session.companyId };
     if (type) {
-      where.type = type;
+      const categories = await queryAll(
+        `SELECT * FROM "Category" WHERE "companyId" = $1 AND type = $2 ORDER BY name ASC`,
+        [session.companyId, type]
+      );
+      return NextResponse.json(categories);
     }
 
-    const categories = await db.category.findMany({
-      where,
-      orderBy: { name: 'asc' },
-    });
+    const categories = await queryAll(
+      `SELECT * FROM "Category" WHERE "companyId" = $1 ORDER BY name ASC`,
+      [session.companyId]
+    );
 
     return NextResponse.json(categories);
   } catch (error: unknown) {
@@ -43,15 +46,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Type must be income or expense' }, { status: 400 });
     }
 
-    const category = await db.category.create({
-      data: {
-        name,
-        type,
-        companyId: session.companyId,
-      },
-    });
+    const id = generateId();
+    const result = await query(
+      `INSERT INTO "Category" (id, name, type, "companyId") VALUES ($1, $2, $3, $4) RETURNING *`,
+      [id, name, type, session.companyId]
+    );
 
-    return NextResponse.json(category, { status: 201 });
+    return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

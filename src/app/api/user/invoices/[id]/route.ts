@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { query } from '@/lib/db';
 import { verifyUser } from '@/lib/api-auth';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -17,12 +17,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Invalid status. Must be Pending or Paid' }, { status: 400 });
     }
 
-    const invoice = await db.invoice.update({
-      where: { id, companyId: session.companyId },
-      data: { status },
-    });
+    const result = await query(
+      `UPDATE "Invoice" SET status = $1, "updatedAt" = NOW() WHERE id = $2 AND "companyId" = $3 RETURNING *`,
+      [status, id, session.companyId]
+    );
 
-    return NextResponse.json(invoice);
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0]);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserPlus, CheckCircle2, XCircle, Clock, Eye } from 'lucide-react';
+import { getAdminAuthHeaders } from './shared';
 
 interface Registration {
   id: string;
@@ -38,7 +39,7 @@ export default function RegistrationsPage() {
 
   const fetchRegistrations = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/registrations');
+      const res = await fetch('/api/admin/registrations', { headers: getAdminAuthHeaders() });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setRegistrations(data);
@@ -54,7 +55,7 @@ export default function RegistrationsPage() {
   const handleAction = async (id: string, action: 'approve' | 'reject' | 'trial') => {
     setActionLoading(id);
     try {
-      const res = await fetch(`/api/admin/registrations/${id}/${action}`, { method: 'POST' });
+      const res = await fetch(`/api/admin/registrations/${id}/${action}`, { method: 'POST', headers: getAdminAuthHeaders() });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Action failed');
