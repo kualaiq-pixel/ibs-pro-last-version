@@ -1228,3 +1228,135 @@ Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allow
  GET / 200 in 52ms (compile: 35ms, render: 17ms)
   Reload env: .env
  GET / 200 in 55ms (compile: 35ms, render: 20ms)
+prisma:error 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__e311d990._.js:139:156
+
+  136     });
+  137 }
+  138 // Find Admin by username
+→ 139 const admin = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique(
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider  = "postgresql"
+ 7 |   url       = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+Admin login error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__e311d990._.js:139:156
+
+  136     });
+  137 }
+  138 // Find Admin by username
+→ 139 const admin = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique(
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider  = "postgresql"
+ 7 |   url       = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/auth/admin-login/route.ts:20:34)
+    at <unknown> (-->  schema.prisma:7)
+    at async POST (src/app/api/auth/admin-login/route.ts:20:19)
+  18 |
+  19 |     // Find Admin by username
+> 20 |     const admin = await db.admin.findUnique({
+     |                                  ^
+  21 |       where: { username },
+  22 |     });
+  23 | {
+  clientVersion: '6.19.2',
+  errorCode: undefined,
+  retryable: undefined
+}
+ POST /api/auth/admin-login 500 in 608ms (compile: 396ms, render: 212ms)
+prisma:error 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__e311d990._.js:139:156
+
+  136     });
+  137 }
+  138 // Find Admin by username
+→ 139 const admin = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique(
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider  = "postgresql"
+ 7 |   url       = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+Admin login error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__e311d990._.js:139:156
+
+  136     });
+  137 }
+  138 // Find Admin by username
+→ 139 const admin = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique(
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider  = "postgresql"
+ 7 |   url       = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/auth/admin-login/route.ts:20:34)
+    at <unknown> (-->  schema.prisma:7)
+    at async POST (src/app/api/auth/admin-login/route.ts:20:19)
+  18 |
+  19 |     // Find Admin by username
+> 20 |     const admin = await db.admin.findUnique({
+     |                                  ^
+  21 |       where: { username },
+  22 |     });
+  23 | {
+  clientVersion: '6.19.2',
+  errorCode: undefined,
+  retryable: undefined
+}
+ POST /api/auth/admin-login 500 in 158ms (compile: 4ms, render: 154ms)
+Admin login error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__e311d990._.js:141:156
+
+  138     });
+  139 }
+  140 // Find Admin by username
+→ 141 const admin = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].admin.findUnique(
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider  = "postgresql"
+ 7 |   url       = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/auth/admin-login/route.ts:20:34)
+    at <unknown> (-->  schema.prisma:7)
+    at async POST (src/app/api/auth/admin-login/route.ts:20:19)
+  18 |
+  19 |     // Find Admin by username
+> 20 |     const admin = await db.admin.findUnique({
+     |                                  ^
+  21 |       where: { username },
+  22 |     });
+  23 | {
+  clientVersion: '6.19.2',
+  errorCode: undefined,
+  retryable: undefined
+}
+ POST /api/auth/admin-login 500 in 213ms (compile: 40ms, render: 173ms)
+  Reload env: .env
+ GET / 200 in 71ms (compile: 42ms, render: 29ms)
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+⨯ Failed to load next.config.ts, see more info here https://nextjs.org/docs/messages/next-config-error
+TypeError: (0 , _env.loadEnv) is not a function
+    at Object.<anonymous> (next.config.compiled.js:13:18)
+[?25h
