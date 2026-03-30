@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Admin user
+model Admin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  auditLogs AuditLog[]
+}
+
+// Company
+model Company {
+  id              String   @id @default(cuid())
+  name            String
+  code            String   @unique
+  businessId      String?
+  vatId           String?
+  iban            String?
+  phone           String?
+  email           String?
+  address         String?
+  zipCode         String?
+  city            String?
+  country         String?
+  currency        String   @default("EUR")
+  trialStart      DateTime?
+  trialEnd        DateTime?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  users           User[]
+  customers       Customer[]
+  incomeRecords   Income[]
+  expenseRecords  Expense[]
+  invoices        Invoice[]
+  bookings        Booking[]
+  workOrders      WorkOrder[]
+  certificates    Certificate[]
+  services        Service[]
+  categories      Category[]
+}
+
+// Registration application
+model Registration {
+  id         String   @id @default(cuid())
+  companyName String
+  username   String
+  password   String
+  phone      String?
+  businessId String?
+  vatId      String?
+  iban       String?
+  address    String?
+  zipCode    String?
+  city       String?
+  country    String?
+  status     String   @default("pending") // pending, approved, rejected, trial
+  trialStart DateTime?
+  trialEnd   DateTime?
+  reviewedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// User
+model User {
+  id        String   @id @default(cuid())
+  username  String
+  password  String
+  role      String   @default("Staff") // Admin, Manager, Accountant, Staff, Viewer
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Customer
+model Customer {
+  id        String  @id @default(cuid())
+  name      String
+  email     String?
+  address   String?
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  incomes   Income[]
+  expenses  Expense[]
+  invoices  Invoice[]
+  bookings  Booking[]
+  workOrders WorkOrder[]
+  certificates Certificate[]
+}
+
+// Income
+model Income {
+  id             String   @id @default(cuid())
+  date           DateTime
+  description    String?
+  category       String?
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vehicleMake    String?
+  vehicleModel   String?
+  licensePlate   String?
+  services       String   // JSON string of services
+  totalAmount    Float
+  vatRate        Float    @default(25.5)
+  paymentMethod  String   // Card, Cash, Bill
+  invoiceId      String?
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Expense
+model Expense {
+  id             String   @id @default(cuid())
+  date           DateTime
+  description    String?
+  category       String?
+  amount         Float
+  vatRate        Float    @default(25.5)
+  paymentMethod  String   // Card, Cash, Bill
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Invoice
+model Invoice {
+  id             String   @id @default(cuid())
+  invoiceNumber  String   @unique
+  date           DateTime
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  total          Float
+  vatRate        Float    @default(25.5)
+  status         String   @default("Pending") // Pending, Paid
+  paymentMethod  String   // Card, Cash, Bill
+  referenceNumber String?
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items          InvoiceItem[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Float
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// Booking
+model Booking {
+  id             String   @id @default(cuid())
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vehicleMake    String?
+  vehicleModel   String?
+  licensePlate   String?
+  serviceType    String?
+  bookingDate    DateTime
+  notes          String?
+  status         String   @default("Scheduled") // Scheduled, In Progress, Completed, Cancelled
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Work Order
+model WorkOrder {
+  id               String   @id @default(cuid())
+  workOrderNumber  String   @unique
+  date             DateTime
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vehicleMake      String?
+  vehicleModel     String?
+  licensePlate     String?
+  technician       String?
+  estimatedHours   Float?
+  actualHours      Float?
+  mileage          Float?
+  workDescription  String?
+  parts            String   // JSON string of parts
+  partsCost        Float    @default(0)
+  laborCost        Float    @default(0)
+  totalCost        Float    @default(0)
+  status           String   @default("Draft") // Draft, In Progress, Completed
+  recommendations  String?
+  nextServiceDue   DateTime?
+  guarantee        String?
+  warrantyDetails  String?
+  qualityCheck     String?
+  technicianNotes  String?
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  certificates     Certificate[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Maintenance Certificate
+model Certificate {
+  id                  String   @id @default(cuid())
+  certificateNumber   String   @unique
+  issueDate           DateTime
+  customerId          String?
+  customer            Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vehicleMake         String?
+  vehicleModel        String?
+  licensePlate        String?
+  maintenanceType     String?
+  validUntil          DateTime?
+  status              String   @default("Active") // Active, Expired
+  nextMaintenanceDate DateTime?
+  maintenanceInterval String?
+  technician          String?
+  inspectionResults   String? // JSON string
+  technicianNotes     String?
+  recommendations     String?
+  serviceHistory      String? // JSON string
+  remarks             String?
+  workOrderId         String?
+  workOrder           WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// Service (company-specific)
+model Service {
+  id        String  @id @default(cuid())
+  name      String
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// Category (income/expense)
+model Category {
+  id        String  @id @default(cuid())
+  name      String
+  type      String  // income, expense
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// SHK Link
+model ShkLink {
+  id        String  @id @default(cuid())
+  name      String
+  url       String
+  username  String?
+  password  String?
+  companyId String  @unique
+}
+
+// Audit Log
+model AuditLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  user      String
+  action    String
+  adminId   String?
+  admin     Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+}
+
+// Contact info (managed by admin, shown on front page)
+model ContactInfo {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+// Support chat message
+model SupportMessage {
+  id        String   @id @default(cuid())
+  sender    String   // admin, user
+  senderName String
+  message   String
+  companyId String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Session
+model Session {
+  id           String   @id @default(cuid())
+  userId       String?
+  userType     String   // admin, user
+  username     String
+  companyId    String?
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
