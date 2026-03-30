@@ -79,11 +79,11 @@
    postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
    ```
 
-### Step 3: Push Database Schema
+### Step 3: Setup Database
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR-USERNAME/ibs-pro-last-version.git
+git clone https://github.com/kualaiq-pixel/ibs-pro-last-version.git
 cd ibs-pro-last-version
 
 # Install dependencies
@@ -92,14 +92,16 @@ npm install
 # Create .env file
 cp .env.example .env
 
-# Edit .env and paste your Supabase URLs
-nano .env  # or use any text editor
+# Edit .env and paste your DATABASE_URL
+# IMPORTANT: URL-encode your password (replace @ with %40)
+# Example: If password is "My@Pass", use "My%40Pass"
+nano .env
 
-# Push schema to Supabase
-npx prisma db push
+# Create database tables
+node scripts/create-tables.js
 
 # Seed admin user
-npx prisma db seed
+DATABASE_URL="your-database-url" npx tsx prisma/seed.ts
 ```
 
 ### Step 4: Deploy to Vercel
@@ -124,8 +126,7 @@ npx prisma db seed
 5. **Environment Variables** → Add:
    | Key | Value |
    |-----|-------|
-   | `DATABASE_URL` | Your Supabase pooler URL |
-   | `DIRECT_DATABASE_URL` | Your Supabase direct URL |
+   | `DATABASE_URL` | Your Supabase pooler URL (with `?pgbouncer=true`) |
    | `NEXT_PUBLIC_APP_URL` | Your Vercel URL |
 6. Click **"Deploy"**
 
@@ -143,7 +144,6 @@ vercel
 
 # Set environment variables
 vercel env add DATABASE_URL
-vercel env add DIRECT_DATABASE_URL
 vercel env add NEXT_PUBLIC_APP_URL
 
 # Redeploy with env vars
@@ -155,12 +155,7 @@ vercel --prod
 After first deployment, seed the admin user:
 
 ```bash
-# Set your production env vars locally first
-export DATABASE_URL="your-supabase-url"
-export DIRECT_DATABASE_URL="your-supabase-direct-url"
-
-# Run seed
-npx prisma db seed
+DATABASE_URL="your-supabase-pooler-url" npx tsx prisma/seed.ts
 ```
 
 ---
@@ -187,8 +182,8 @@ cp .env.example .env
 # Edit .env with your database URL and app URL
 
 # 4. Setup database
-npx prisma db push
-npx prisma db seed
+node scripts/create-tables.js
+DATABASE_URL="your-database-url" npx tsx prisma/seed.ts
 
 # 5. Build for production
 npm run build
@@ -236,8 +231,7 @@ npm i @netlify/next
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | ✅ | PostgreSQL connection string (Supabase pooler) |
-| `DIRECT_DATABASE_URL` | ✅ | Direct PostgreSQL connection (for migrations) |
+| `DATABASE_URL` | ✅ | PostgreSQL connection string (Supabase pooler, with `?pgbouncer=true`) |
 | `NEXT_PUBLIC_APP_URL` | ❌ | Your app's public URL |
 
 ---

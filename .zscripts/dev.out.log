@@ -1216,3 +1216,15 @@ Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allow
 
 ✓ Starting...
 ✓ Ready in 596ms
+  Reload env: .env
+ GET / 200 in 2.5s (compile: 2.5s, render: 45ms)
+  Reload env: .env
+ GET / 200 in 49ms (compile: 30ms, render: 20ms)
+  Reload env: .env
+ GET / 200 in 51ms (compile: 34ms, render: 17ms)
+  Reload env: .env
+ GET / 200 in 56ms (compile: 36ms, render: 21ms)
+  Reload env: .env
+ GET / 200 in 52ms (compile: 35ms, render: 17ms)
+  Reload env: .env
+ GET / 200 in 55ms (compile: 35ms, render: 20ms)
