@@ -3,25 +3,26 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // Admin user
 model Admin {
-  id        String   @id @default(cuid())
-  username  String   @unique
+  id        String     @id @default(cuid())
+  username  String     @unique
   password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   auditLogs AuditLog[]
 }
 
 // Company
 model Company {
-  id              String   @id @default(cuid())
+  id              String         @id @default(cuid())
   name            String
-  code            String   @unique
+  code            String         @unique
   businessId      String?
   vatId           String?
   iban            String?
@@ -31,12 +32,12 @@ model Company {
   zipCode         String?
   city            String?
   country         String?
-  currency        String   @default("EUR")
+  currency        String         @default("EUR")
   trialStart      DateTime?
   trialEnd        DateTime?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   users           User[]
   customers       Customer[]
   incomeRecords   Income[]
@@ -51,7 +52,7 @@ model Company {
 
 // Registration application
 model Registration {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   companyName String
   username   String
   password   String
@@ -63,12 +64,12 @@ model Registration {
   zipCode    String?
   city       String?
   country    String?
-  status     String   @default("pending") // pending, approved, rejected, trial
+  status     String    @default("pending") // pending, approved, rejected, trial
   trialStart DateTime?
   trialEnd   DateTime?
   reviewedBy String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 // User
@@ -85,76 +86,76 @@ model User {
 
 // Customer
 model Customer {
-  id        String  @id @default(cuid())
-  name      String
-  email     String?
-  address   String?
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  incomes   Income[]
-  expenses  Expense[]
-  invoices  Invoice[]
-  bookings  Booking[]
+  id         String       @id @default(cuid())
+  name       String
+  email      String?
+  address    String?
+  companyId  String
+  company    Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  incomes    Income[]
+  expenses   Expense[]
+  invoices   Invoice[]
+  bookings   Booking[]
   workOrders WorkOrder[]
   certificates Certificate[]
 }
 
 // Income
 model Income {
-  id             String   @id @default(cuid())
-  date           DateTime
-  description    String?
-  category       String?
-  customerId     String?
-  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  vehicleMake    String?
-  vehicleModel   String?
-  licensePlate   String?
-  services       String   // JSON string of services
-  totalAmount    Float
-  vatRate        Float    @default(25.5)
-  paymentMethod  String   // Card, Cash, Bill
-  invoiceId      String?
-  companyId      String
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String    @id @default(cuid())
+  date          DateTime
+  description   String?
+  category      String?
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vehicleMake   String?
+  vehicleModel  String?
+  licensePlate  String?
+  services      String    @default("{}") // JSON string of services
+  totalAmount   Float
+  vatRate       Float     @default(25.5)
+  paymentMethod String    // Card, Cash, Bill
+  invoiceId     String?
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 // Expense
 model Expense {
-  id             String   @id @default(cuid())
-  date           DateTime
-  description    String?
-  category       String?
-  amount         Float
-  vatRate        Float    @default(25.5)
-  paymentMethod  String   // Card, Cash, Bill
-  companyId      String
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customerId     String?
-  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String    @id @default(cuid())
+  date          DateTime
+  description   String?
+  category      String?
+  amount        Float
+  vatRate       Float     @default(25.5)
+  paymentMethod String    // Card, Cash, Bill
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 // Invoice
 model Invoice {
-  id             String   @id @default(cuid())
-  invoiceNumber  String   @unique
-  date           DateTime
-  customerId     String?
-  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  total          Float
-  vatRate        Float    @default(25.5)
-  status         String   @default("Pending") // Pending, Paid
-  paymentMethod  String   // Card, Cash, Bill
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  date            DateTime
+  customerId      String?
+  customer        Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  total           Float
+  vatRate         Float         @default(25.5)
+  status          String        @default("Pending") // Pending, Paid
+  paymentMethod   String        // Card, Cash, Bill
   referenceNumber String?
-  companyId      String
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  items          InvoiceItem[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items           InvoiceItem[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model InvoiceItem {
@@ -168,29 +169,29 @@ model InvoiceItem {
 
 // Booking
 model Booking {
-  id             String   @id @default(cuid())
-  customerId     String?
-  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  vehicleMake    String?
-  vehicleModel   String?
-  licensePlate   String?
-  serviceType    String?
-  bookingDate    DateTime
-  notes          String?
-  status         String   @default("Scheduled") // Scheduled, In Progress, Completed, Cancelled
-  companyId      String
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String    @id @default(cuid())
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vehicleMake  String?
+  vehicleModel String?
+  licensePlate String?
+  serviceType  String?
+  bookingDate  DateTime
+  notes        String?
+  status       String    @default("Scheduled") // Scheduled, In Progress, Completed, Cancelled
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 // Work Order
 model WorkOrder {
-  id               String   @id @default(cuid())
-  workOrderNumber  String   @unique
+  id               String       @id @default(cuid())
+  workOrderNumber  String       @unique
   date             DateTime
   customerId       String?
-  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   vehicleMake      String?
   vehicleModel     String?
   licensePlate     String?
@@ -199,11 +200,11 @@ model WorkOrder {
   actualHours      Float?
   mileage          Float?
   workDescription  String?
-  parts            String   // JSON string of parts
-  partsCost        Float    @default(0)
-  laborCost        Float    @default(0)
-  totalCost        Float    @default(0)
-  status           String   @default("Draft") // Draft, In Progress, Completed
+  parts            String       @default("{}") // JSON string of parts
+  partsCost        Float        @default(0)
+  laborCost        Float        @default(0)
+  totalCost        Float        @default(0)
+  status           String       @default("Draft") // Draft, In Progress, Completed
   recommendations  String?
   nextServiceDue   DateTime?
   guarantee        String?
@@ -211,39 +212,39 @@ model WorkOrder {
   qualityCheck     String?
   technicianNotes  String?
   companyId        String
-  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company          Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   certificates     Certificate[]
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 }
 
 // Maintenance Certificate
 model Certificate {
-  id                  String   @id @default(cuid())
-  certificateNumber   String   @unique
+  id                  String     @id @default(cuid())
+  certificateNumber   String     @unique
   issueDate           DateTime
   customerId          String?
-  customer            Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer            Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
   vehicleMake         String?
   vehicleModel        String?
   licensePlate        String?
   maintenanceType     String?
   validUntil          DateTime?
-  status              String   @default("Active") // Active, Expired
+  status              String     @default("Active") // Active, Expired
   nextMaintenanceDate DateTime?
   maintenanceInterval String?
   technician          String?
-  inspectionResults   String? // JSON string
+  inspectionResults   String?    @default("{}")
   technicianNotes     String?
   recommendations     String?
-  serviceHistory      String? // JSON string
+  serviceHistory      String?    @default("[]")
   remarks             String?
   workOrderId         String?
   workOrder           WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
   companyId           String
-  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  company             Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 }
 
 // Service (company-specific)
@@ -292,23 +293,23 @@ model ContactInfo {
 
 // Support chat message
 model SupportMessage {
-  id        String   @id @default(cuid())
-  sender    String   // admin, user
+  id         String   @id @default(cuid())
+  sender     String   // admin, user
   senderName String
-  message   String
-  companyId String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  message    String
+  companyId  String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
 }
 
 // Session
 model Session {
-  id           String   @id @default(cuid())
-  userId       String?
-  userType     String   // admin, user
-  username     String
-  companyId    String?
-  token        String   @unique
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String?
+  userType  String   // admin, user
+  username  String
+  companyId String?
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
